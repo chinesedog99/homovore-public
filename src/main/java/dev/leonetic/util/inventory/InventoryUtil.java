@@ -20,6 +20,8 @@ import java.util.function.Predicate;
 public final class InventoryUtil implements Util {
     static final Result NONE = new Result(-1, ItemStack.EMPTY, ResultType.NONE);
 
+    public static final int OFFHAND_SWAP_BUTTON = 40;
+
     public static final EnumSet<ResultType> HOTBAR_SCOPE = EnumSet.of(ResultType.OFFHAND, ResultType.HOTBAR);
     public static final EnumSet<ResultType> INVENTORY_SCOPE = EnumSet.of(ResultType.OFFHAND, ResultType.INVENTORY);
     public static final EnumSet<ResultType> FULL_SCOPE = EnumSet.of(ResultType.OFFHAND, ResultType.HOTBAR, ResultType.INVENTORY);
@@ -124,7 +126,7 @@ public final class InventoryUtil implements Util {
 
     public static void swapToOffhand(int inventorySlot) {
         int containerSlot = inventorySlot < 9 ? inventorySlot + 36 : inventorySlot;
-        click(containerSlot, 40, ClickType.SWAP);
+        click(containerSlot, OFFHAND_SWAP_BUTTON, ClickType.SWAP);
     }
 
     public static void swapToHotbarSlot(int inventorySlot, int hotbarSlot) {
