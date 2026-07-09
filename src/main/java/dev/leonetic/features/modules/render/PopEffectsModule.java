@@ -28,6 +28,8 @@ public class PopEffectsModule extends Module {
             color("Accent", 0x55, 0xFF, 0x55, 0xFF).setPage("Particles");
     public final Setting<Float> scale =
             num("Scale", 1.0f, 0.1f, 5.0f).setPage("Particles");
+    public final Setting<Boolean> throughWalls =
+            bool("ThroughWalls", false).setPage("Particles");
 
     public final Setting<Boolean> ghosts =
             bool("Ghosts", true).setPage("Ghosts");
