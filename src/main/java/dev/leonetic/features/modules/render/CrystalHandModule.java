@@ -1,11 +1,14 @@
 package dev.leonetic.features.modules.render;
 
 import dev.leonetic.features.modules.Module;
+import dev.leonetic.features.settings.Setting;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 public class CrystalHandModule extends Module {
+    public final Setting<Boolean> require = bool("Require", true);
+
     public CrystalHandModule() {
         super("CrystalHand", "Renders your sword as an end crystal if you have crystals in your inventory", Category.RENDER);
     }
@@ -19,7 +22,7 @@ public class CrystalHandModule extends Module {
     }
 
     public ItemStack getDisplayStack(ItemStack original) {
-        if (original.is(ItemTags.SWORDS) && hasCrystalsInInventory()) {
+        if (original.is(ItemTags.SWORDS) && (!require.getValue() || hasCrystalsInInventory())) {
             return new ItemStack(Items.END_CRYSTAL);
         }
         return original;

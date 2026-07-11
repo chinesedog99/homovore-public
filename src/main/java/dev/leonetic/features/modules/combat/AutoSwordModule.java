@@ -33,25 +33,33 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
+import java.awt.Color;
+
 public class AutoSwordModule extends Module {
 
     public enum TpsMode { NONE, LATEST, AVERAGE }
 
     private static final double RANGE = 3.0;
 
-    private final Setting<Double> delay = num("Delay", 0.92, 0.0, 1.0);
-    private final Setting<Boolean> swing = bool("Swing", true);
-    private final Setting<Boolean> render = bool("Render", true);
-    private final Setting<TpsMode> tpsMode = mode("TPS", TpsMode.LATEST);
+    private final Setting<Double> delay = num("Delay", 0.92, 0.0, 1.0).setPage("General");
+    private final Setting<Boolean> swing = bool("Swing", true).setPage("General");
+    private final Setting<TpsMode> tpsMode = mode("TPS", TpsMode.LATEST).setPage("General");
 
-    private final Setting<Boolean> criticals = bool("Criticals", false);
+    private final Setting<Boolean> criticals = bool("Criticals", false).setPage("General");
     private final Setting<Boolean> critsWithSword = bool("CritsWithSword", true)
-            .setVisibility(v -> criticals.getValue());
+            .setVisibility(v -> criticals.getValue()).setPage("General");
     private final Setting<Boolean> strict = bool("Strict", true)
-            .setVisibility(v -> criticals.getValue());
+            .setVisibility(v -> criticals.getValue()).setPage("General");
+
+    private final Setting<Boolean> render = bool("Render", true).setPage("Render");
+    private final Setting<Float> fadeTime = num("FadeTime", 0.2f, 0.05f, 2.0f).setPage("Render");
+    private final Setting<Color> sideColor = color("SideColor", 130, 80, 255, 45).setPage("Render");
+    private final Setting<Color> lineColor = color("LineColor", 130, 80, 255, 255).setPage("Render");
 
     private Entity currentTarget = null;
     private float attackCooldownTicks = 0f;
+    private AABB fadeBox = null;
+    private long lastTargetTime = 0L;
 
     public AutoSwordModule() {
         super("AutoSword", "Automatically attacks nearby players with the best weapon.", Category.COMBAT);
@@ -61,6 +69,7 @@ public class AutoSwordModule extends Module {
     public void onDisable() {
         currentTarget = null;
         attackCooldownTicks = 0f;
+        fadeBox = null;
     }
 
     @Subscribe
@@ -159,22 +168,41 @@ public class AutoSwordModule extends Module {
 
     @Override
     public void onRender3D(Render3DEvent event) {
-        if (!render.getValue() || currentTarget == null || nullCheck() || mc.player.isDeadOrDying()) return;
+        if (!render.getValue() || nullCheck() || mc.player.isDeadOrDying()) return;
 
         AutoCrystalModule ac = Homovore.moduleManager.getModuleByClass(AutoCrystalModule.class);
         if (ac != null && ac.isEnabled() && ac.getLastBestDamage() >= ac.getMinDamage()) return;
 
-        float partialTicks = event.getDelta();
-        double interpX = currentTarget.xOld + (currentTarget.getX() - currentTarget.xOld) * partialTicks;
-        double interpY = currentTarget.yOld + (currentTarget.getY() - currentTarget.yOld) * partialTicks;
-        double interpZ = currentTarget.zOld + (currentTarget.getZ() - currentTarget.zOld) * partialTicks;
-        AABB box = currentTarget.getBoundingBox().move(
-            interpX - currentTarget.getX(),
-            interpY - currentTarget.getY(),
-            interpZ - currentTarget.getZ()
-        );
+        long now = System.currentTimeMillis();
 
-        RenderUtil.drawBox(event.getMatrix(), box, Homovore.colorManager.get("ui"), 1.5f);
+        if (currentTarget != null) {
+            float partialTicks = event.getDelta();
+            double interpX = currentTarget.xOld + (currentTarget.getX() - currentTarget.xOld) * partialTicks;
+            double interpY = currentTarget.yOld + (currentTarget.getY() - currentTarget.yOld) * partialTicks;
+            double interpZ = currentTarget.zOld + (currentTarget.getZ() - currentTarget.zOld) * partialTicks;
+            fadeBox = currentTarget.getBoundingBox().move(
+                interpX - currentTarget.getX(),
+                interpY - currentTarget.getY(),
+                interpZ - currentTarget.getZ()
+            );
+            lastTargetTime = now;
+        }
+
+        if (fadeBox == null) return;
+
+        double fadeMs = fadeTime.getValue() * 1000.0;
+        double t = (now - lastTargetTime) / fadeMs;
+        if (t >= 1.0) {
+            fadeBox = null;
+            return;
+        }
+
+        Color sc = sideColor.getValue();
+        Color lc = lineColor.getValue();
+        RenderUtil.drawBoxFilled(event.getMatrix(), fadeBox,
+                new Color(sc.getRed(), sc.getGreen(), sc.getBlue(), Mth.clamp((int) (sc.getAlpha() * (1 - t)), 0, 255)));
+        RenderUtil.drawBox(event.getMatrix(), fadeBox,
+                new Color(lc.getRed(), lc.getGreen(), lc.getBlue(), Mth.clamp((int) (lc.getAlpha() * (1 - t)), 0, 255)), 1.5f);
     }
 
     public boolean isMaceAttackReady() {
