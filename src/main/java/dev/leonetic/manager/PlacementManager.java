@@ -139,13 +139,19 @@ public class PlacementManager extends Feature {
     public boolean enqueue(BlockPos pos, int hotbarSlot) {
         if (isOnCooldown(pos)) return false;
         if (!queued.add(pos)) return false;
-        return queue.offer(new PlacementTask(pos, null, hotbarSlot));
+        return queue.offer(new PlacementTask(pos, null, hotbarSlot, false));
+    }
+
+    public boolean enqueueExtendedReach(BlockPos pos, int hotbarSlot) {
+        if (isOnCooldown(pos)) return false;
+        if (!queued.add(pos)) return false;
+        return queue.offer(new PlacementTask(pos, null, hotbarSlot, true));
     }
 
     public boolean enqueue(BlockPos pos, Direction face, int hotbarSlot) {
         if (isOnCooldown(pos)) return false;
         if (!queued.add(pos)) return false;
-        return queue.offer(new PlacementTask(pos, face, hotbarSlot));
+        return queue.offer(new PlacementTask(pos, face, hotbarSlot, false));
     }
 
     private boolean isOnCooldown(BlockPos pos) {
@@ -284,7 +290,7 @@ public class PlacementManager extends Feature {
         for (BlockPos pos : positions) {
             if (ready.size() >= budget) break;
             if (isOnCooldown(pos)) continue;
-            PreparedClick prepared = prepareClick(new PlacementTask(pos, null, hotbarSlot));
+            PreparedClick prepared = prepareClick(new PlacementTask(pos, null, hotbarSlot, false));
             if (prepared != null) ready.add(prepared);
         }
         if (ready.isEmpty()) return List.of();
@@ -408,7 +414,14 @@ public class PlacementManager extends Feature {
     @Nullable
     private PreparedClick prepareClick(PlacementTask task) {
         BlockPos pos = task.pos();
-        if (!PlaceUtil.canPlace(pos)) return null;
+        if (task.extendedReach()) {
+            if (mc.level.isOutsideBuildHeight(pos)) return null;
+            if (!mc.level.getBlockState(pos).canBeReplaced()) return null;
+            if (mc.player.getBoundingBox().intersects(new AABB(pos))) return null;
+            if (!PlaceUtil.noEntityCollision(pos)) return null;
+        } else if (!PlaceUtil.canPlace(pos)) {
+            return null;
+        }
 
         Direction dir = task.face() != null ? task.face() : getPlaceSide(pos);
 
@@ -583,7 +596,7 @@ public class PlacementManager extends Feature {
         if (recentPlacements.size() >= WINDOW_LIMIT) return false;
         if (isOnCooldown(pos)) return false;
 
-        PreparedClick click = prepareClick(new PlacementTask(pos, face, hotbarSlot));
+        PreparedClick click = prepareClick(new PlacementTask(pos, face, hotbarSlot, false));
         if (click == null) return false;
 
         boolean sent = false;
@@ -906,5 +919,5 @@ public class PlacementManager extends Feature {
         return new Vec3(g * h, i, f * h);
     }
 
-    private record PlacementTask(BlockPos pos, @Nullable Direction face, int hotbarSlot) {}
+    private record PlacementTask(BlockPos pos, @Nullable Direction face, int hotbarSlot, boolean extendedReach) {}
 }
